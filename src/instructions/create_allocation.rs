@@ -3,7 +3,9 @@ use pinocchio::{
 };
 use pinocchio_token::instructions::Transfer;
 
-use crate::{ProgramAccount, SignerAccount, VestingAllocation, VestingSchedule};
+use crate::{
+    ProgramAccount, SignerAccount, SystemProgram, TokenProgram, VestingAllocation, VestingSchedule,
+};
 
 pub struct CreateAllocationAccounts<'a> {
     pub creator: &'a AccountInfo,
@@ -33,6 +35,8 @@ impl<'a> TryFrom<&'a [AccountInfo]> for CreateAllocationAccounts<'a> {
         };
 
         SignerAccount::check(creator)?;
+        SystemProgram::check(system_program)?;
+        TokenProgram::check(token_program)?;
 
         Ok(Self {
             creator,

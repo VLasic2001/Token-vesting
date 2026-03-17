@@ -2,7 +2,10 @@ use pinocchio::{
     ProgramResult, account_info::AccountInfo, instruction::Seed, program_error::ProgramError,
 };
 
-use crate::{AssociatedTokenAccount, ProgramAccount, SignerAccount, VestingSchedule};
+use crate::{
+    AssociatedTokenAccount, AssociatedTokenProgram, ProgramAccount, SignerAccount, SystemProgram,
+    TokenProgram, VestingSchedule,
+};
 
 pub struct CreateScheduleAccounts<'a> {
     pub creator: &'a AccountInfo,
@@ -31,6 +34,9 @@ impl<'a> TryFrom<&'a [AccountInfo]> for CreateScheduleAccounts<'a> {
         };
 
         SignerAccount::check(creator)?;
+        SystemProgram::check(system_program)?;
+        TokenProgram::check(token_program)?;
+        AssociatedTokenProgram::check(associated_token_program)?;
 
         Ok(Self {
             creator,
@@ -46,8 +52,6 @@ impl<'a> TryFrom<&'a [AccountInfo]> for CreateScheduleAccounts<'a> {
 
 #[repr(C, packed)]
 pub struct CreateScheduleInstructionData {
-    pub authority: [u8; 32],
-    pub mint: [u8; 32],
     pub start_time: i64,
     pub cliff_time: i64,
     pub step_duration: i64,
@@ -94,13 +98,6 @@ impl<'a> CreateSchedule<'a> {
     pub const DISCRIMINATOR: &'a u8 = &1;
 
     pub fn process(&mut self) -> ProgramResult {
-        if *self.accounts.creator.key() != self.instruction_data.authority {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-        if *self.accounts.mint.key() != self.instruction_data.mint {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
         if self.instruction_data.step_duration <= 0
             || self.instruction_data.total_vesting_time <= 0
             || self.instruction_data.total_vesting_time < self.instruction_data.cliff_time
@@ -115,8 +112,7 @@ impl<'a> CreateSchedule<'a> {
         let schedule_seeds = [
             Seed::from(b"vesting"),
             Seed::from(&seed_binding),
-            Seed::from(&self.instruction_data.mint),
-            Seed::from(&self.instruction_data.authority),
+            Seed::from(self.accounts.mint.key()),
             Seed::from(&self.instruction_data.schedule_bump),
         ];
 
@@ -129,8 +125,8 @@ impl<'a> CreateSchedule<'a> {
 
         let schedule = unsafe { VestingSchedule::load_mut_unchecked(&self.accounts.schedule)? };
         schedule.set_inner(
-            self.instruction_data.authority,
-            self.instruction_data.mint,
+            *self.accounts.creator.key(),
+            *self.accounts.mint.key(),
             self.instruction_data.start_time,
             self.instruction_data.cliff_time,
             self.instruction_data.step_duration,

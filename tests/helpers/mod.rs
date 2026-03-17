@@ -4,14 +4,13 @@ use litesvm_token::{CreateAssociatedTokenAccount, CreateMint, MintTo};
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    signer::{keypair::Keypair, Signer},
+    signer::{Signer, keypair::Keypair},
     transaction::Transaction,
 };
 
 pub const PROGRAM_ID_BYTES: [u8; 32] = [
-    0x0f, 0x1e, 0x6b, 0x14, 0x21, 0xc0, 0x4a, 0x07, 0x04, 0x31, 0x26, 0x5c, 0x19, 0xc5, 0xbb,
-    0xee, 0x19, 0x92, 0xba, 0xe8, 0xaf, 0xd1, 0xcd, 0x07, 0x8e, 0xf8, 0xaf, 0x70, 0x47, 0xdc,
-    0x11, 0xf7,
+    0x0f, 0x1e, 0x6b, 0x14, 0x21, 0xc0, 0x4a, 0x07, 0x04, 0x31, 0x26, 0x5c, 0x19, 0xc5, 0xbb, 0xee,
+    0x19, 0x92, 0xba, 0xe8, 0xaf, 0xd1, 0xcd, 0x07, 0x8e, 0xf8, 0xaf, 0x70, 0x47, 0xdc, 0x11, 0xf7,
 ];
 
 pub fn program_id() -> Pubkey {
@@ -33,9 +32,7 @@ pub fn ata_program_id() -> Pubkey {
 pub fn setup() -> (LiteSVM, Keypair) {
     let mut feature_set = FeatureSet::all_enabled();
     feature_set.deactivate(&agave_feature_set::account_data_direct_mapping::id());
-    let mut svm = LiteSVM::new()
-        .with_feature_set(feature_set)
-        .with_builtins();
+    let mut svm = LiteSVM::new().with_feature_set(feature_set).with_builtins();
     svm.add_program_from_file(program_id(), "target/deploy/vesting.so")
         .unwrap();
     let authority = Keypair::new();
@@ -47,14 +44,9 @@ pub fn setup() -> (LiteSVM, Keypair) {
 // PDA helpers
 // =============================================================================
 
-pub fn find_schedule_pda(seed: u64, mint: &Pubkey, authority: &Pubkey) -> (Pubkey, u8) {
+pub fn find_schedule_pda(seed: u64, mint: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[
-            b"vesting",
-            &seed.to_le_bytes(),
-            mint.as_ref(),
-            authority.as_ref(),
-        ],
+        &[b"vesting", &seed.to_le_bytes(), mint.as_ref()],
         &program_id(),
     )
 }
@@ -79,7 +71,6 @@ pub fn build_create_schedule_ix(
     mint: &Pubkey,
     schedule: &Pubkey,
     schedule_ata: &Pubkey,
-    authority: &Pubkey,
     start_time: i64,
     cliff_time: i64,
     step_duration: i64,
@@ -88,8 +79,6 @@ pub fn build_create_schedule_ix(
     schedule_bump: u8,
 ) -> Instruction {
     let mut data = vec![1u8];
-    data.extend_from_slice(authority.as_ref());
-    data.extend_from_slice(mint.as_ref());
     data.extend_from_slice(&start_time.to_le_bytes());
     data.extend_from_slice(&cliff_time.to_le_bytes());
     data.extend_from_slice(&step_duration.to_le_bytes());
@@ -218,10 +207,7 @@ pub fn get_token_balance(svm: &LiteSVM, ata: &Pubkey) -> u64 {
 // =============================================================================
 
 pub fn create_mint(svm: &mut LiteSVM, payer: &Keypair) -> Pubkey {
-    CreateMint::new(svm, payer)
-        .decimals(6)
-        .send()
-        .unwrap()
+    CreateMint::new(svm, payer).decimals(6).send().unwrap()
 }
 
 pub fn create_ata_and_mint(
@@ -236,9 +222,7 @@ pub fn create_ata_and_mint(
         .send()
         .unwrap();
 
-    MintTo::new(svm, payer, mint, &ata, amount)
-        .send()
-        .unwrap();
+    MintTo::new(svm, payer, mint, &ata, amount).send().unwrap();
 
     ata
 }
@@ -254,12 +238,20 @@ pub fn create_test_schedule(
     seed: u64,
 ) -> (Pubkey, Pubkey) {
     let auth_pk = authority.pubkey();
-    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, mint, &auth_pk);
+    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, mint);
     let schedule_ata = find_ata(&schedule_pda, mint);
 
     let ix = build_create_schedule_ix(
-        &auth_pk, mint, &schedule_pda, &schedule_ata, &auth_pk,
-        start_time, cliff_time, step_duration, total_vesting_time, seed, schedule_bump,
+        &auth_pk,
+        mint,
+        &schedule_pda,
+        &schedule_ata,
+        start_time,
+        cliff_time,
+        step_duration,
+        total_vesting_time,
+        seed,
+        schedule_bump,
     );
     send_tx(svm, &[ix], &[authority]);
     (schedule_pda, schedule_ata)
@@ -287,7 +279,14 @@ pub fn setup_vesting_scenario(
 
     let seed: u64 = 42;
     let (schedule_pda, schedule_ata) = create_test_schedule(
-        &mut svm, &authority, &mint, start_time, cliff_time, step_duration, total_vesting_time, seed,
+        &mut svm,
+        &authority,
+        &mint,
+        start_time,
+        cliff_time,
+        step_duration,
+        total_vesting_time,
+        seed,
     );
 
     let auth_pk = authority.pubkey();
@@ -299,8 +298,14 @@ pub fn setup_vesting_scenario(
     let (allocation_pda, allocation_bump) = find_allocation_pda(&recipient.pubkey(), &schedule_pda);
 
     let ix = build_create_allocation_ix(
-        &auth_pk, &_authority_ata, &schedule_pda, &schedule_ata,
-        &allocation_pda, &recipient.pubkey(), amount, allocation_bump,
+        &auth_pk,
+        &_authority_ata,
+        &schedule_pda,
+        &schedule_ata,
+        &allocation_pda,
+        &recipient.pubkey(),
+        amount,
+        allocation_bump,
     );
     send_tx(&mut svm, &[ix], &[&authority]);
 

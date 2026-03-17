@@ -7,7 +7,7 @@ use pinocchio::{
 };
 use pinocchio_token::instructions::Transfer;
 
-use crate::{ProgramAccount, SignerAccount, VestingAllocation, VestingSchedule};
+use crate::{ProgramAccount, SignerAccount, TokenProgram, VestingAllocation, VestingSchedule};
 
 pub struct WithdrawAccounts<'a> {
     pub recipient: &'a AccountInfo,
@@ -37,6 +37,7 @@ impl<'a> TryFrom<&'a [AccountInfo]> for WithdrawAccounts<'a> {
         };
 
         SignerAccount::check(recipient)?;
+        TokenProgram::check(token_program)?;
 
         Ok(Self {
             recipient,
@@ -125,7 +126,6 @@ impl<'a> Withdraw<'a> {
             Seed::from(b"vesting"),
             Seed::from(&seed_binding),
             Seed::from(schedule.mint()),
-            Seed::from(schedule.authority()),
             Seed::from(&bump_binding),
         ];
 

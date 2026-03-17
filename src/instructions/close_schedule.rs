@@ -5,7 +5,7 @@ use pinocchio::{
 };
 use pinocchio_token::{instructions::CloseAccount, state::TokenAccount};
 
-use crate::{AssociatedTokenAccount, ProgramAccount, SignerAccount, VestingSchedule};
+use crate::{AssociatedTokenAccount, ProgramAccount, SignerAccount, TokenProgram, VestingSchedule};
 
 pub struct CloseScheduleAccounts<'a> {
     pub authority: &'a AccountInfo,
@@ -24,6 +24,7 @@ impl<'a> TryFrom<&'a [AccountInfo]> for CloseScheduleAccounts<'a> {
         };
 
         SignerAccount::check(authority)?;
+        TokenProgram::check(token_program)?;
 
         Ok(Self {
             authority,
@@ -76,7 +77,6 @@ impl<'a> CloseSchedule<'a> {
             Seed::from(b"vesting"),
             Seed::from(&seed_binding),
             Seed::from(schedule.mint()),
-            Seed::from(schedule.authority()),
             Seed::from(&bump_binding),
         ];
 

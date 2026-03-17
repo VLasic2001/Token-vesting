@@ -24,11 +24,11 @@ fn step_duration_zero() {
     let auth_pk = authority.pubkey();
 
     let seed: u64 = 1;
-    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint, &auth_pk);
+    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint);
     let schedule_ata = find_ata(&schedule_pda, &mint);
 
     let ix = build_create_schedule_ix(
-        &auth_pk, &mint, &schedule_pda, &schedule_ata, &auth_pk,
+        &auth_pk, &mint, &schedule_pda, &schedule_ata,
         1_000_000, 100, 0, 500, seed, schedule_bump,
     );
     send_tx_expect_err(&mut svm, &[ix], &[&authority]);
@@ -41,11 +41,11 @@ fn total_vesting_time_zero() {
     let auth_pk = authority.pubkey();
 
     let seed: u64 = 1;
-    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint, &auth_pk);
+    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint);
     let schedule_ata = find_ata(&schedule_pda, &mint);
 
     let ix = build_create_schedule_ix(
-        &auth_pk, &mint, &schedule_pda, &schedule_ata, &auth_pk,
+        &auth_pk, &mint, &schedule_pda, &schedule_ata,
         1_000_000, 0, 50, 0, seed, schedule_bump,
     );
     send_tx_expect_err(&mut svm, &[ix], &[&authority]);
@@ -58,11 +58,11 @@ fn cliff_greater_than_total() {
     let auth_pk = authority.pubkey();
 
     let seed: u64 = 1;
-    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint, &auth_pk);
+    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint);
     let schedule_ata = find_ata(&schedule_pda, &mint);
 
     let ix = build_create_schedule_ix(
-        &auth_pk, &mint, &schedule_pda, &schedule_ata, &auth_pk,
+        &auth_pk, &mint, &schedule_pda, &schedule_ata,
         1_000_000, 600, 50, 500, seed, schedule_bump,
     );
     send_tx_expect_err(&mut svm, &[ix], &[&authority]);
@@ -75,11 +75,11 @@ fn negative_cliff() {
     let auth_pk = authority.pubkey();
 
     let seed: u64 = 1;
-    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint, &auth_pk);
+    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint);
     let schedule_ata = find_ata(&schedule_pda, &mint);
 
     let ix = build_create_schedule_ix(
-        &auth_pk, &mint, &schedule_pda, &schedule_ata, &auth_pk,
+        &auth_pk, &mint, &schedule_pda, &schedule_ata,
         1_000_000, -1, 50, 500, seed, schedule_bump,
     );
     send_tx_expect_err(&mut svm, &[ix], &[&authority]);
@@ -92,34 +92,13 @@ fn step_larger_than_post_cliff() {
     let auth_pk = authority.pubkey();
 
     let seed: u64 = 1;
-    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint, &auth_pk);
+    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint);
     let schedule_ata = find_ata(&schedule_pda, &mint);
 
     // total - cliff = 500 - 450 = 50, step = 100 > 50
     let ix = build_create_schedule_ix(
-        &auth_pk, &mint, &schedule_pda, &schedule_ata, &auth_pk,
+        &auth_pk, &mint, &schedule_pda, &schedule_ata,
         1_000_000, 450, 100, 500, seed, schedule_bump,
     );
     send_tx_expect_err(&mut svm, &[ix], &[&authority]);
-}
-
-#[test]
-fn wrong_authority() {
-    let (mut svm, authority) = setup();
-    let mint = create_mint(&mut svm, &authority);
-    let auth_pk = authority.pubkey();
-
-    let fake = Keypair::new();
-    svm.airdrop(&fake.pubkey(), 10_000_000_000).unwrap();
-
-    let seed: u64 = 1;
-    let (schedule_pda, schedule_bump) = find_schedule_pda(seed, &mint, &auth_pk);
-    let schedule_ata = find_ata(&schedule_pda, &mint);
-
-    // creator (fake) != authority in data
-    let ix = build_create_schedule_ix(
-        &fake.pubkey(), &mint, &schedule_pda, &schedule_ata, &auth_pk,
-        1_000_000, 100, 50, 500, seed, schedule_bump,
-    );
-    send_tx_expect_err(&mut svm, &[ix], &[&fake]);
 }

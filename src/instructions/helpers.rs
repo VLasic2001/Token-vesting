@@ -43,6 +43,36 @@ impl TokenAccount {
     }
 }
 
+pub struct SystemProgram;
+impl SystemProgram {
+    pub fn check(account: &AccountInfo) -> Result<(), ProgramError> {
+        if account.key().ne(&pinocchio_system::ID) {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+        Ok(())
+    }
+}
+
+pub struct TokenProgram;
+impl TokenProgram {
+    pub fn check(account: &AccountInfo) -> Result<(), ProgramError> {
+        if account.key().ne(&pinocchio_token::ID) {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+        Ok(())
+    }
+}
+
+pub struct AssociatedTokenProgram;
+impl AssociatedTokenProgram {
+    pub fn check(account: &AccountInfo) -> Result<(), ProgramError> {
+        if account.key().ne(&pinocchio_associated_token_account::ID) {
+            return Err(ProgramError::IncorrectProgramId);
+        }
+        Ok(())
+    }
+}
+
 pub struct AssociatedTokenAccount;
 impl AssociatedTokenAccount {
     pub fn check(
